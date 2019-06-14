@@ -13,15 +13,15 @@ $org = getOrgFromUserInventory(USERNAME);
 $org_uuid = $org['uuid'];
 $org_name = $org['name'];
 
-$latest_report_uuid = getLatestEventReportUuid($org_uuid, 'vulnerability');
+$latest_vuln_report_uuid = getLatestEventReportUuid($org_uuid, 'vulnerability');
 
 $current_date = time();
-$week_ago = strtotime(date("Y-m-d H:i:s", $current_date) . " -7 day");
-$task_uuid = generateEventReport($org_uuid, 'vulnerability', $week_ago * 1000, $current_date * 1000);
+$three_months_ago = strtotime(date("Y-m-d H:i:s", $current_date) . " -3 month");
+$task_uuid = generateEventReport($org_uuid, 'antimalware', $three_months_ago * 1000, $current_date * 1000);
 $generated_report_uuid = waitForSyncedTask($task_uuid)['other_attributes']['file_uuid'];
 
-createVulnerabilityByHostTable($org_uuid, $org_name, $latest_report_uuid);
-createVulnerabilityByHostTable($org_uuid, $org_name, $generated_report_uuid);
+createVulnerabilityByHostTable($org_uuid, $org_name, $latest_vuln_report_uuid);
+createAntiMalwareEventTable($org_uuid, $org_name, $generated_report_uuid);
 
 /**
  * Get the access token using defined credentials.
@@ -193,6 +193,22 @@ function createVulnerabilityByHostTable($org_uuid, $org_name, $report_uuid)
     $vuln_json = json_decode(getReportJson($org_uuid, $report_uuid)['json_content'], true);
     foreach ($vuln_json['vulns_by_host'] as $value) {
         echo createHtmlTable($value);
+    }
+}
+
+/**
+ * Given a org uuid, org name and a report uuid generate a html table showing the antimalware events.
+ *
+ * @param string $org_uuid organization's uuid
+ * @param string $org_name organization's name
+ * @param string $report_uuid report uuid
+ */
+function createAntiMalwareEventTable($org_uuid, $org_name, $report_uuid) {
+    $event_json = json_decode(getReportJson($org_uuid, $report_uuid)['json_content'], true);
+    $antimalware_events = $event_json['anti_malware_event_map'][0][1];
+    if(count($antimalware_events) > 0) {
+        echo '<h1>Antimalware Events for Organization: '. $org_name .'</h1>';
+        echo createHtmlTable($antimalware_events);
     }
 }
 
